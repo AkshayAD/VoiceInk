@@ -8,7 +8,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/main/main-simple.ts')
+          index: resolve(__dirname, 'src/main/main.ts')
         }
       }
     }
@@ -18,7 +18,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/preload/preload-simple.ts')
+          index: resolve(__dirname, 'src/preload/preload.ts')
         }
       }
     }
@@ -28,7 +28,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/renderer/index-simple.html')
+          index: resolve(__dirname, 'src/renderer/index.html')
         }
       }
     }
