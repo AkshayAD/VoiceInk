@@ -50,10 +50,12 @@
     {
       "target_name": "whisperbinding",
       "sources": [
-        "src/native/whisper-binding/addon.cpp"
+        "src/native/whisper-binding/addon.cpp",
+        "src/native/whisper-binding/whisper_transcriber.cpp"
       ],
       "include_dirs": [
-        "<!@(node -p \"require('node-addon-api').include\")"
+        "<!@(node -p \"require('node-addon-api').include\")",
+        "src/native/whisper-binding"
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
