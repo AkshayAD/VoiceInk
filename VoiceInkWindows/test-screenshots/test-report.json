@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-09-18T12:33:54.198Z",
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "warnings": 0,
+    "failed": 1
+  },
+  "details": {
+    "passed": [],
+    "failed": [
+      "Test Execution"
+    ],
+    "warnings": []
+  },
+  "verdict": "NEEDS_FIXES",
+  "recommendations": [
+    "Native WASAPI audio capture implementation required",
+    "Whisper.cpp integration needed for real transcription",
+    "Test on actual Windows environment",
+    "Implement real-time audio streaming",
+    "Add proper error handling for native modules"
+  ]
+}

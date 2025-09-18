@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events'
 import * as path from 'path'
+import { MockAudioRecorder } from './mockAudioRecorder'
 
 interface AudioDevice {
   id: string
@@ -52,9 +53,22 @@ class AudioRecorder extends EventEmitter {
     } catch (error) {
       // Fallback to mock implementation
       console.log('⚠️ AudioRecorder: Native module not available, using mock implementation')
-      const mockModule = require('./mockAudioRecorder')
-      this.mockModule = mockModule.audioRecorder
+      this.mockModule = new MockAudioRecorder()
+      this.setupMockEventHandlers()
       this.isUsingNative = false
+    }
+  }
+
+  private setupMockEventHandlers() {
+    if (this.mockModule) {
+      // Forward mock events to this recorder
+      this.mockModule.on('level', (level: number) => this.emit('level', level))
+      this.mockModule.on('data', (data: Float32Array) => this.emit('data', data))
+      this.mockModule.on('started', () => this.emit('started'))
+      this.mockModule.on('stopped', (data: Float32Array) => this.emit('stopped', data))
+      this.mockModule.on('paused', () => this.emit('paused'))
+      this.mockModule.on('resumed', () => this.emit('resumed'))
+      this.mockModule.on('error', (error: Error) => this.emit('error', error))
     }
   }
 

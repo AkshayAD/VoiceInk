@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events'
 import * as path from 'path'
+import { MockTranscriptionService } from './mockTranscriptionService'
 
 interface TranscriptionModel {
   id: string
@@ -97,9 +98,20 @@ class TranscriptionService extends EventEmitter {
     } catch (error) {
       // Fallback to mock implementation
       console.log('⚠️ TranscriptionService: Native module not available, using mock implementation')
-      const mockModule = require('./mockTranscriptionService')
-      this.mockModule = mockModule.transcriptionService
+      this.mockModule = new MockTranscriptionService()
+      this.setupMockEventHandlers()
       this.isUsingNative = false
+    }
+  }
+
+  private setupMockEventHandlers() {
+    if (this.mockModule) {
+      // Forward mock events to this service
+      this.mockModule.on('progress', (progress: any) => this.emit('progress', progress))
+      this.mockModule.on('modelDownload', (data: any) => this.emit('modelDownload', data))
+      this.mockModule.on('started', () => this.emit('started'))
+      this.mockModule.on('completed', (result: any) => this.emit('completed', result))
+      this.mockModule.on('error', (error: Error) => this.emit('error', error))
     }
   }
 
