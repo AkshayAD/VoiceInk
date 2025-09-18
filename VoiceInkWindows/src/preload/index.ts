@@ -22,6 +22,8 @@ const electronAPI = {
   // Audio Processing
   saveAudioFile: (audioBlob: ArrayBuffer, mimeType: string) => 
     ipcRenderer.invoke('audio:save-file', audioBlob, mimeType),
+  saveRecording: (data: any) => 
+    ipcRenderer.invoke('audio:save-recording', data),
   processAudioBlob: (audioBlob: ArrayBuffer, mimeType: string) => 
     ipcRenderer.invoke('audio:process-blob', audioBlob, mimeType),
 
@@ -177,6 +179,40 @@ const electronAPI = {
 
 // Expose the API to the renderer process
 contextBridge.exposeInMainWorld('electron', electronAPI)
+
+// Also expose as electronAPI for backward compatibility
+contextBridge.exposeInMainWorld('electronAPI', {
+  audio: {
+    startRecording: electronAPI.startRecording,
+    stopRecording: electronAPI.stopRecording,
+    pauseRecording: electronAPI.pauseRecording,
+    resumeRecording: electronAPI.resumeRecording,
+    saveRecording: electronAPI.saveRecording,
+    saveAudioFile: electronAPI.saveAudioFile,
+    getDevices: electronAPI.getAudioDevices,
+    selectDevice: electronAPI.selectAudioDevice
+  },
+  transcription: {
+    transcribe: electronAPI.transcribeFile,
+    transcribeAudio: electronAPI.transcribeAudio,
+    setApiKey: electronAPI.setGeminiApiKey,
+    getModels: electronAPI.getGeminiModels,
+    selectModel: electronAPI.selectGeminiModel,
+    getStatus: electronAPI.getTranscriptionStatus,
+    cancel: electronAPI.cancelTranscription
+  },
+  database: {
+    getTranscriptions: electronAPI.getTranscriptions,
+    saveTranscription: electronAPI.saveTranscription,
+    updateTranscription: electronAPI.updateTranscription,
+    deleteTranscription: electronAPI.deleteTranscription,
+    searchTranscriptions: electronAPI.searchTranscriptions
+  },
+  settings: {
+    get: electronAPI.getSettings,
+    update: electronAPI.updateSettings
+  }
+})
 
 // Type definitions for TypeScript
 export type ElectronAPI = typeof electronAPI

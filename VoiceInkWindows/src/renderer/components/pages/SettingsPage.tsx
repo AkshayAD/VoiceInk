@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Settings, 
   Mic, 
@@ -12,12 +12,14 @@ import {
   RotateCcw,
   Bell,
   Zap,
-  Download
+  Download,
+  Key
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { Input } from '../ui/Input'
+import { ApiKeyInput } from '../ui/ApiKeyInput'
 import { cn } from '../../lib/utils'
 
 interface SettingsPageProps {
@@ -240,6 +242,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
       case 'transcription':
         return (
           <div className="space-y-6">
+            {/* API Key Configuration */}
+            <ApiKeyInput
+              title="Gemini API Key"
+              description="Enter your Google Gemini API key for AI transcription"
+              placeholder="Enter your Gemini API key..."
+              onSave={async (apiKey) => {
+                // Save API key via IPC
+                await (window as any).electronAPI.transcription.setApiKey(apiKey)
+              }}
+              onValidate={async (apiKey) => {
+                // Basic validation - check format
+                return apiKey.length > 20 && !apiKey.includes(' ')
+              }}
+            />
+            
             <Card>
               <CardHeader>
                 <CardTitle>AI Model Settings</CardTitle>
@@ -252,10 +269,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = () => {
                     onChange={(e) => updateSetting('defaultModel', e.target.value)}
                     className="w-full p-2 border rounded-md"
                   >
-                    <option value="whisper-tiny">Whisper Tiny (Fast)</option>
-                    <option value="whisper-base">Whisper Base (Balanced)</option>
-                    <option value="whisper-small">Whisper Small (Accurate)</option>
-                    <option value="whisper-medium">Whisper Medium (Professional)</option>
+                    <optgroup label="Gemini Models (Cloud)">
+                      <option value="gemini-2.5-flash">Gemini 2.5 Flash (Fast, Efficient)</option>
+                      <option value="gemini-2.5-pro">Gemini 2.5 Pro (Most Accurate)</option>
+                      <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (Experimental)</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (Stable)</option>
+                    </optgroup>
+                    <optgroup label="Whisper Models (Local)">
+                      <option value="whisper-tiny">Whisper Tiny (Fast)</option>
+                      <option value="whisper-base">Whisper Base (Balanced)</option>
+                      <option value="whisper-small">Whisper Small (Accurate)</option>
+                      <option value="whisper-medium">Whisper Medium (Professional)</option>
+                    </optgroup>
                   </select>
                 </div>
                 

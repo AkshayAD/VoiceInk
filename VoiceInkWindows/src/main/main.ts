@@ -6,7 +6,7 @@ import { registerWindowHandlers } from './handlers/windowHandlers'
 import { registerHotkeyHandlers, cleanupHotkeys } from './handlers/hotkeyHandlers'
 import { createSystemTray, destroyTray } from './handlers/trayHandlers'
 import { setupAutoUpdater } from './handlers/updateHandlers'
-import { registerExportHandlers } from './handlers/exportHandlers'
+import { setupExportHandlers } from './ipc/exportHandlers'
 import { setupAnalytics, trackAppStart, trackAppExit } from './handlers/analyticsHandlers'
 import Store from 'electron-store'
 import * as fs from 'fs'
@@ -217,7 +217,7 @@ app.whenReady().then(() => {
     registerHotkeyHandlers(mainWindow)
     createSystemTray(mainWindow)
     setupAutoUpdater(mainWindow)
-    registerExportHandlers()
+    setupExportHandlers()
     setupAnalytics()
     trackAppStart()
   }

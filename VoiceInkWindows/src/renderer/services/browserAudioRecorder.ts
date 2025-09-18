@@ -3,7 +3,35 @@
  * This runs in the renderer process and captures real audio from the microphone
  */
 
-import { EventEmitter } from 'events'
+// Simple EventEmitter implementation for browser
+class EventEmitter {
+  private events: { [key: string]: Function[] } = {}
+
+  on(event: string, listener: Function) {
+    if (!this.events[event]) {
+      this.events[event] = []
+    }
+    this.events[event].push(listener)
+  }
+
+  off(event: string, listener: Function) {
+    if (!this.events[event]) return
+    this.events[event] = this.events[event].filter(l => l !== listener)
+  }
+
+  emit(event: string, ...args: any[]) {
+    if (!this.events[event]) return
+    this.events[event].forEach(listener => listener(...args))
+  }
+
+  removeAllListeners(event?: string) {
+    if (event) {
+      delete this.events[event]
+    } else {
+      this.events = {}
+    }
+  }
+}
 
 interface AudioDevice {
   deviceId: string
@@ -465,6 +493,36 @@ export class BrowserAudioRecorder extends EventEmitter {
     this.mediaRecorder = null
     this.audioChunks = []
     this.currentLevel = 0
+  }
+
+  /**
+   * Save audio blob to file
+   */
+  async saveAudioFile(audioBlob: Blob, fileName?: string): Promise<string> {
+    try {
+      // Convert blob to array buffer
+      const arrayBuffer = await audioBlob.arrayBuffer()
+      
+      // Generate file name if not provided
+      const finalFileName = fileName || `recording_${Date.now()}.webm`
+      
+      // Send to main process for saving
+      const result = await (window as any).electronAPI.audio.saveRecording({
+        audioBuffer: arrayBuffer,
+        fileName: finalFileName,
+        mimeType: audioBlob.type
+      })
+      
+      if (result.success) {
+        console.log('Audio file saved:', result.filePath)
+        return result.filePath
+      } else {
+        throw new Error(result.error || 'Failed to save audio file')
+      }
+    } catch (error) {
+      console.error('Failed to save audio file:', error)
+      throw error
+    }
   }
 
   /**

@@ -3,6 +3,9 @@ import { GoogleGenerativeAI, GenerativeModel, Part } from '@google/generative-ai
 import * as fs from 'fs'
 import * as path from 'path'
 import { v4 as uuidv4 } from 'uuid'
+import Store from 'electron-store'
+
+const store = new Store()
 
 interface TranscriptionResult {
   id: string
@@ -82,11 +85,11 @@ export class GeminiTranscriptionService extends EventEmitter {
    */
   private async initialize() {
     try {
-      // Get API key from environment or settings
-      this.apiKey = process.env.GEMINI_API_KEY || ''
+      // Get API key from store, then environment, then settings
+      this.apiKey = store.get('geminiApiKey', '') as string || process.env.GEMINI_API_KEY || ''
       
       if (!this.apiKey) {
-        console.warn('⚠️ Gemini API key not found. Please set GEMINI_API_KEY environment variable.')
+        console.warn('⚠️ Gemini API key not found. Please set API key in settings.')
         this.emit('error', new Error('Gemini API key not configured'))
         return
       }
@@ -120,6 +123,7 @@ export class GeminiTranscriptionService extends EventEmitter {
    */
   async setApiKey(apiKey: string): Promise<void> {
     this.apiKey = apiKey
+    store.set('geminiApiKey', apiKey)
     process.env.GEMINI_API_KEY = apiKey
     await this.initialize()
   }

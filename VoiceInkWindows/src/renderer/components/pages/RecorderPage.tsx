@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Mic, Square, Play, Pause, Save, Settings, Download } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
 import { Button } from '../ui/Button'
@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge'
 import { RecordingButton } from '../features/RecordingButton'
 import { AudioLevelMeter } from '../features/AudioLevelMeter'
 import { TranscriptionDisplay } from '../features/TranscriptionDisplay'
+import { BrowserAudioRecorder } from '../../services/browserAudioRecorder'
 
 interface RecorderPageProps {
   currentPage?: string
@@ -18,30 +19,82 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
   const [recordingTime, setRecordingTime] = useState(0)
   const [audioLevel, setAudioLevel] = useState(0)
   const [transcriptionSegments, setTranscriptionSegments] = useState<any[]>([])
+  const [audioDevices, setAudioDevices] = useState<any[]>([])
+  const [selectedDevice, setSelectedDevice] = useState<string>('')
+  
+  const audioRecorderRef = useRef<BrowserAudioRecorder | null>(null)
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Initialize audio recorder
   useEffect(() => {
-    if (!isRecording || isPaused) return
-
-    const interval = setInterval(() => {
-      setRecordingTime(prev => prev + 1)
-      setAudioLevel(Math.random() * 100)
-      
-      // Simulate live transcription updates
-      if (Math.random() < 0.1) { // 10% chance per second
-        const newSegment = {
-          id: Date.now().toString(),
-          text: `New transcription segment at ${Math.floor(recordingTime / 60)}:${(recordingTime % 60).toString().padStart(2, '0')}`,
-          startTime: recordingTime,
-          endTime: recordingTime + 3,
-          confidence: 0.8 + Math.random() * 0.2,
-          isFinal: false
-        }
-        setTranscriptionSegments(prev => [...prev, newSegment])
+    audioRecorderRef.current = new BrowserAudioRecorder()
+    
+    // Set up event listeners
+    audioRecorderRef.current.on('recordingStarted', () => {
+      console.log('📹 Recording started event received')
+    })
+    
+    audioRecorderRef.current.on('recordingComplete', (audioData) => {
+      console.log('✅ Recording complete:', {
+        duration: audioData.duration,
+        size: audioData.size,
+        mimeType: audioData.mimeType
+      })
+      // Save audio data
+      saveAudioRecording(audioData)
+    })
+    
+    audioRecorderRef.current.on('audioLevel', (level) => {
+      setAudioLevel(level * 100)
+    })
+    
+    audioRecorderRef.current.on('error', (error) => {
+      console.error('Recording error:', error)
+      // TODO: Show error toast
+    })
+    
+    // Load audio devices
+    loadAudioDevices()
+    
+    return () => {
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.removeAllListeners()
       }
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [isRecording, isPaused, recordingTime])
+    }
+  }, [])
+  
+  // Timer for recording duration
+  useEffect(() => {
+    if (isRecording && !isPaused) {
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
+    } else {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+      }
+    }
+    
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+      }
+    }
+  }, [isRecording, isPaused])
+  
+  const loadAudioDevices = async () => {
+    try {
+      if (audioRecorderRef.current) {
+        const devices = await audioRecorderRef.current.getAudioDevices()
+        setAudioDevices(devices)
+        if (devices.length > 0 && !selectedDevice) {
+          setSelectedDevice(devices[0].deviceId)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load audio devices:', error)
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
@@ -54,26 +107,124 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleStartRecording = () => {
-    setIsRecording(true)
-    setIsPaused(false)
-    setRecordingTime(0)
-    setTranscriptionSegments([])
+  const handleStartRecording = async () => {
+    try {
+      if (!audioRecorderRef.current) {
+        console.error('Audio recorder not initialized')
+        return
+      }
+      
+      console.log('🎤 Starting recording with device:', selectedDevice)
+      
+      // Start actual recording
+      await audioRecorderRef.current.startRecording({
+        deviceId: selectedDevice,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        mimeType: 'audio/webm'
+      })
+      
+      setIsRecording(true)
+      setIsPaused(false)
+      setRecordingTime(0)
+      setTranscriptionSegments([])
+    } catch (error) {
+      console.error('Failed to start recording:', error)
+      // TODO: Show error toast
+    }
   }
 
-  const handleStopRecording = () => {
-    setIsRecording(false)
-    setIsPaused(false)
-    setAudioLevel(0)
+  const handleStopRecording = async () => {
+    try {
+      if (!audioRecorderRef.current) {
+        console.error('Audio recorder not initialized')
+        return
+      }
+      
+      console.log('🛑 Stopping recording...')
+      
+      // Stop actual recording
+      const audioData = await audioRecorderRef.current.stopRecording()
+      console.log('Recording stopped, audio data:', audioData)
+      
+      setIsRecording(false)
+      setIsPaused(false)
+      setAudioLevel(0)
+    } catch (error) {
+      console.error('Failed to stop recording:', error)
+      // TODO: Show error toast
+    }
   }
 
   const handlePauseResume = () => {
-    setIsPaused(!isPaused)
+    try {
+      if (!audioRecorderRef.current || !isRecording) return
+      
+      if (isPaused) {
+        audioRecorderRef.current.resumeRecording()
+        setIsPaused(false)
+      } else {
+        audioRecorderRef.current.pauseRecording()
+        setIsPaused(true)
+      }
+    } catch (error) {
+      console.error('Failed to pause/resume:', error)
+    }
   }
 
   const handleSaveRecording = () => {
-    // TODO: Implement save functionality
-    console.log('Saving recording...')
+    // This will be called automatically when recording stops
+    console.log('Manual save requested')
+  }
+  
+  const saveAudioRecording = async (audioData: any) => {
+    try {
+      console.log('💾 Saving audio recording...')
+      
+      // Convert blob to array buffer
+      const arrayBuffer = await audioData.blob.arrayBuffer()
+      
+      // Send to main process via IPC
+      const result = await (window as any).electronAPI.audio.saveRecording({
+        audioBuffer: arrayBuffer,
+        mimeType: audioData.mimeType,
+        duration: audioData.duration,
+        sampleRate: audioData.sampleRate
+      })
+      
+      console.log('Audio saved:', result)
+      
+      // Start transcription if saved successfully
+      if (result.success && result.filePath) {
+        startTranscription(result.filePath)
+      }
+    } catch (error) {
+      console.error('Failed to save recording:', error)
+    }
+  }
+  
+  const startTranscription = async (filePath: string) => {
+    try {
+      console.log('🎯 Starting transcription for:', filePath)
+      
+      // Call Gemini transcription via IPC
+      const transcriptionResult = await (window as any).electronAPI.transcription.transcribe(filePath, {
+        language: 'auto',
+        enableTimestamps: true,
+        model: 'gemini-2.5-flash'
+      })
+      
+      console.log('Transcription result:', transcriptionResult)
+      
+      // Update UI with transcription
+      if (transcriptionResult.segments) {
+        setTranscriptionSegments(transcriptionResult.segments)
+      }
+    } catch (error) {
+      console.error('Transcription failed:', error)
+    }
   }
 
   return (
@@ -201,10 +352,19 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Audio Device</label>
-              <select className="w-full p-2 border rounded-md">
-                <option>Default Microphone</option>
-                <option>USB Microphone</option>
-                <option>Headset Microphone</option>
+              <select 
+                className="w-full p-2 border rounded-md"
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+              >
+                {audioDevices.map(device => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label}
+                  </option>
+                ))}
+                {audioDevices.length === 0 && (
+                  <option disabled>No audio devices found</option>
+                )}
               </select>
             </div>
             

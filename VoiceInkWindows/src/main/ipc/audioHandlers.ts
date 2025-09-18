@@ -76,6 +76,51 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
     return audioRecorder.isRecordingActive()
   })
 
+  // Save recording handler for browser-based recording
+  ipcMain.handle('audio:save-recording', async (_, data) => {
+    try {
+      const { audioBuffer, fileName, mimeType, duration, sampleRate } = data
+      
+      // Create recordings directory
+      const recordingsDir = path.join(process.cwd(), 'recordings')
+      if (!fs.existsSync(recordingsDir)) {
+        fs.mkdirSync(recordingsDir, { recursive: true })
+      }
+      
+      // Generate file name if not provided
+      const finalFileName = fileName || `recording_${Date.now()}.webm`
+      const filepath = path.join(recordingsDir, finalFileName)
+      
+      // Convert ArrayBuffer to Buffer and save
+      const buffer = Buffer.from(audioBuffer)
+      fs.writeFileSync(filepath, buffer)
+      
+      console.log(`💾 Audio saved: ${filepath} (${buffer.length} bytes)`)
+      
+      // Send event to renderer
+      mainWindow.webContents.send('audio:recordingSaved', { 
+        filepath, 
+        size: buffer.length,
+        duration,
+        mimeType 
+      })
+      
+      return { 
+        success: true, 
+        filePath: filepath,
+        size: buffer.length,
+        duration,
+        mimeType
+      }
+    } catch (error: any) {
+      console.error('Failed to save recording:', error)
+      return { 
+        success: false, 
+        error: error.message 
+      }
+    }
+  })
+
   // Transcription Handlers
   ipcMain.handle('transcription:getModels', async () => {
     return await transcriptionService.getAvailableModels()

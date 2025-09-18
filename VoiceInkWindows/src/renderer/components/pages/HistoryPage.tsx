@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Calendar, Filter, Download, Trash2, Play, FileText, Clock, Tag } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card'
 import { Button } from '../ui/Button'
@@ -31,9 +31,40 @@ export const HistoryPage: React.FC<HistoryPageProps> = () => {
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [sortBy, setSortBy] = useState('date-desc')
   const [selectedRecords, setSelectedRecords] = useState<string[]>([])
+  const [records, setRecords] = useState<TranscriptionRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Mock data - in real app this would come from database
-  const [records] = useState<TranscriptionRecord[]>([
+  // Load transcriptions from database
+  useEffect(() => {
+    loadTranscriptions()
+  }, [])
+
+  const loadTranscriptions = async () => {
+    setIsLoading(true)
+    try {
+      const transcriptions = await (window as any).electronAPI.database.getTranscriptions()
+      
+      // Map database records to UI format
+      const mappedRecords: TranscriptionRecord[] = transcriptions.map((t: any) => ({
+        id: t.id,
+        title: t.text ? t.text.substring(0, 50) + '...' : 'Untitled',
+        content: t.text || '',
+        duration: t.duration || 0,
+        fileSize: t.audioPath ? 0 : 0, // Would need to get actual file size
+        createdAt: new Date(t.createdAt),
+        tags: [],
+        model: t.model || 'Unknown',
+        accuracy: t.confidence ? t.confidence * 100 : 0,
+        language: t.language || 'Unknown',
+        wordCount: t.wordCount || 0,
+        application: t.applicationName
+      }))
+      
+      setRecords(mappedRecords)
+    } catch (error) {
+      console.error('Failed to load transcriptions:', error)
+      // Fallback to mock data if database is empty or fails
+      setRecords([
     {
       id: '1',
       title: 'Meeting Notes - Q4 Planning',
@@ -101,7 +132,11 @@ export const HistoryPage: React.FC<HistoryPageProps> = () => {
       language: 'English',
       wordCount: 156
     }
-  ])
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filter and search logic
   const filteredRecords = useMemo(() => {
@@ -160,17 +195,40 @@ export const HistoryPage: React.FC<HistoryPageProps> = () => {
     )
   }
 
-  const handleExport = (recordId?: string) => {
+  const handleExport = async (recordId?: string, format: string = 'txt') => {
     const recordsToExport = recordId ? [recordId] : selectedRecords
     console.log('Exporting records:', recordsToExport)
-    // TODO: Implement export functionality
+    
+    try {
+      const result = await (window as any).electronAPI.exportTranscriptions(format, recordsToExport)
+      if (result.success) {
+        console.log(`✅ Exported to: ${result.filePath}`)
+        // TODO: Show success toast
+      } else {
+        console.error('Export failed:', result.error)
+        // TODO: Show error toast
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      // TODO: Show error toast
+    }
   }
 
-  const handleDelete = (recordId?: string) => {
+  const handleDelete = async (recordId?: string) => {
     const recordsToDelete = recordId ? [recordId] : selectedRecords
     console.log('Deleting records:', recordsToDelete)
-    // TODO: Implement delete functionality
-    setSelectedRecords([])
+    
+    try {
+      for (const id of recordsToDelete) {
+        await (window as any).electronAPI.database.deleteTranscription(id)
+      }
+      // Reload the list after deletion
+      await loadTranscriptions()
+      setSelectedRecords([])
+    } catch (error) {
+      console.error('Failed to delete records:', error)
+      // TODO: Show error toast
+    }
   }
 
   const formatDate = (date: Date) => {
@@ -288,7 +346,16 @@ export const HistoryPage: React.FC<HistoryPageProps> = () => {
 
       {/* Records List */}
       <div className="space-y-4">
-        {filteredRecords.length === 0 ? (
+        {isLoading ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <div className="animate-pulse">
+                <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Loading transcriptions...</h3>
+              </div>
+            </CardContent>
+          </Card>
+        ) : filteredRecords.length === 0 ? (
           <Card>
             <CardContent className="text-center py-12">
               <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
