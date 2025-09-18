@@ -48,7 +48,7 @@ interface TranscriptionOptions {
   enableWordTimestamps?: boolean
   maxSpeakers?: number
   prompt?: string
-  model?: 'gemini-2.0-flash-exp' | 'gemini-1.5-pro'
+  model?: 'gemini-2.0-flash-exp' | 'gemini-1.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-pro'
   temperature?: number
 }
 
@@ -67,7 +67,7 @@ export class GeminiTranscriptionService extends EventEmitter {
   private genAI: GoogleGenerativeAI | null = null
   private model: GenerativeModel | null = null
   private isInitialized: boolean = false
-  private currentModel: string = 'gemini-2.0-flash-exp'
+  private currentModel: string = 'gemini-2.5-flash'
   private apiKey: string = ''
   private transcriptionQueue: Map<string, any> = new Map()
   private isProcessing: boolean = false
@@ -127,7 +127,7 @@ export class GeminiTranscriptionService extends EventEmitter {
   /**
    * Switch between Gemini models
    */
-  async switchModel(modelName: 'gemini-2.0-flash-exp' | 'gemini-1.5-pro') {
+  async switchModel(modelName: 'gemini-2.0-flash-exp' | 'gemini-1.5-pro' | 'gemini-2.5-flash' | 'gemini-2.5-pro') {
     if (!this.genAI) {
       throw new Error('Gemini AI not initialized')
     }
@@ -568,7 +568,7 @@ export class GeminiTranscriptionService extends EventEmitter {
    * Get available models
    */
   getAvailableModels(): string[] {
-    return ['gemini-2.0-flash-exp', 'gemini-1.5-pro']
+    return ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.5-pro']
   }
 
   /**
