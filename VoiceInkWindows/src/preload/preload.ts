@@ -11,6 +11,25 @@ const electronAPI = {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   
   // Window management
+  window: {
+    minimize: () => ipcRenderer.send('window-minimize'),
+    maximize: () => ipcRenderer.send('window-maximize'),
+    unmaximize: () => ipcRenderer.send('window-unmaximize'),
+    close: () => ipcRenderer.send('window-close'),
+    isMaximized: () => ipcRenderer.invoke('window-isMaximized'),
+    onStateChanged: (callback: () => void) => {
+      ipcRenderer.on('window-state-changed', callback)
+    },
+    offStateChanged: (callback: () => void) => {
+      ipcRenderer.removeListener('window-state-changed', callback)
+    },
+    // Mini recorder window
+    openMiniRecorder: () => ipcRenderer.invoke('window-openMiniRecorder'),
+    closeMiniRecorder: () => ipcRenderer.invoke('window-closeMiniRecorder'),
+    toggleMiniRecorder: () => ipcRenderer.invoke('window-toggleMiniRecorder')
+  },
+  
+  // Legacy window management (for backward compatibility)
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
   closeWindow: () => ipcRenderer.send('window-close'),

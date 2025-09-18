@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, clipboard, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupAudioHandlers, cleanupAudioHandlers } from './ipc/audioHandlers'
+import { registerWindowHandlers } from './handlers/windowHandlers'
 import Store from 'electron-store'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -207,6 +208,7 @@ app.whenReady().then(() => {
   // Setup audio and transcription handlers after window is created
   if (mainWindow) {
     setupAudioHandlers(mainWindow)
+    registerWindowHandlers(mainWindow)
   }
 
   app.on('activate', function () {
