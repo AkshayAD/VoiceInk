@@ -1,7 +1,12 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, clipboard, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { setupAudioHandlers, cleanupAudioHandlers } from './ipc/audioHandlers'
+import Store from 'electron-store'
+import * as fs from 'fs'
+import * as path from 'path'
 
+const store = new Store()
 let mainWindow: BrowserWindow | null = null
 
 function createWindow(): void {
@@ -110,6 +115,85 @@ ipcMain.handle('db-test', async () => {
   }
 })
 
+// Settings handlers
+ipcMain.handle('settings:get', async (_, key: string) => {
+  return store.get(key)
+})
+
+ipcMain.handle('settings:set', async (_, key: string, value: any) => {
+  store.set(key, value)
+  return true
+})
+
+ipcMain.handle('settings:getAll', async () => {
+  return store.store
+})
+
+ipcMain.handle('settings:reset', async () => {
+  store.clear()
+  return true
+})
+
+// File operations
+ipcMain.handle('file:save', async (_, filepath: string, content: any) => {
+  try {
+    await fs.promises.writeFile(filepath, content)
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('file:load', async (_, filepath: string) => {
+  try {
+    const content = await fs.promises.readFile(filepath, 'utf8')
+    return { success: true, content }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('file:selectDirectory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory']
+  })
+  return result.filePaths[0] || null
+})
+
+ipcMain.handle('file:selectFile', async (_, filters?: any) => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile'],
+    filters: filters || []
+  })
+  return result.filePaths[0] || null
+})
+
+// Clipboard operations
+ipcMain.handle('clipboard:writeText', async (_, text: string) => {
+  clipboard.writeText(text)
+  return true
+})
+
+ipcMain.handle('clipboard:readText', async () => {
+  return clipboard.readText()
+})
+
+ipcMain.handle('clipboard:writeRTF', async (_, rtf: string) => {
+  clipboard.writeRTF(rtf)
+  return true
+})
+
+// System operations
+ipcMain.handle('system:showInFolder', async (_, filepath: string) => {
+  shell.showItemInFolder(filepath)
+  return true
+})
+
+ipcMain.handle('system:openExternal', async (_, url: string) => {
+  await shell.openExternal(url)
+  return true
+})
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.voiceink.windows')
 
@@ -120,12 +204,18 @@ app.whenReady().then(() => {
   console.log('App ready, creating window...')
   createWindow()
 
+  // Setup audio and transcription handlers after window is created
+  if (mainWindow) {
+    setupAudioHandlers(mainWindow)
+  }
+
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
 app.on('window-all-closed', () => {
+  cleanupAudioHandlers()
   if (process.platform !== 'darwin') {
     app.quit()
   }
