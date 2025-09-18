@@ -4,5 +4,8 @@
     "electron-updater": "^6.6.2",
     "uuid": "^13.0.0",
     "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "electron-builder": "^26.0.12"
   }
 }

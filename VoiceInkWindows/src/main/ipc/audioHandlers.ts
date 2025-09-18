@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { audioRecorder } from '../services/audioRecorder'
 import { transcriptionService } from '../services/transcriptionService'
+import { realtimeTranscriptionService } from '../services/realtimeTranscriptionService'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -302,6 +303,49 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
     } catch (error: any) {
       return { success: false, error: error.message }
     }
+  })
+
+  // Real-time transcription handlers
+  ipcMain.handle('realtime:startSession', async (_, options) => {
+    try {
+      const sessionId = await realtimeTranscriptionService.startSession(options)
+      
+      // Forward events to renderer
+      realtimeTranscriptionService.on('partialTranscription', (data) => {
+        mainWindow.webContents.send('realtime:partial', data)
+      })
+      
+      realtimeTranscriptionService.on('chunkProcessing', (data) => {
+        mainWindow.webContents.send('realtime:processing', data)
+      })
+      
+      return { success: true, sessionId }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  
+  ipcMain.handle('realtime:addAudio', async (_, audioBuffer: ArrayBuffer, sampleRate: number) => {
+    try {
+      const buffer = Buffer.from(audioBuffer)
+      realtimeTranscriptionService.addAudioData(buffer, sampleRate)
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  
+  ipcMain.handle('realtime:stopSession', async () => {
+    try {
+      const result = await realtimeTranscriptionService.stopSession()
+      return { success: true, result }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  })
+  
+  ipcMain.handle('realtime:getStatus', async () => {
+    return realtimeTranscriptionService.getSessionStatus()
   })
 }
 
