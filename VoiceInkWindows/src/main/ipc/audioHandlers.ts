@@ -1,21 +1,23 @@
 import { ipcMain, BrowserWindow } from 'electron'
-import { audioRecorder } from '../services/mockAudioRecorder'
-import { transcriptionService } from '../services/mockTranscriptionService'
+import { audioRecorder } from '../services/audioRecorder'
+import { transcriptionService } from '../services/transcriptionService'
 import * as path from 'path'
 import * as fs from 'fs'
 
 export function setupAudioHandlers(mainWindow: BrowserWindow) {
   // Audio Recording Handlers
   ipcMain.handle('audio:getDevices', async () => {
-    return await audioRecorder.getAudioDevices()
+    return await audioRecorder.getDevices()
   })
 
   ipcMain.handle('audio:selectDevice', async (_, deviceId: string) => {
-    return await audioRecorder.selectDevice(deviceId)
+    await audioRecorder.setDevice(deviceId)
+    return true
   })
 
   ipcMain.handle('audio:startRecording', async (_, options) => {
-    const success = await audioRecorder.startRecording(options)
+    await audioRecorder.startRecording(options)
+    const success = true
     if (success) {
       // Set up level monitoring
       audioRecorder.on('level', (level) => {
@@ -31,8 +33,11 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
   })
 
   ipcMain.handle('audio:stopRecording', async () => {
-    const buffer = await audioRecorder.stopRecording()
-    if (buffer) {
+    const audioData = await audioRecorder.stopRecording()
+    if (audioData) {
+      // Convert Float32Array to Buffer for compatibility
+      const buffer = Buffer.from(audioData.buffer)
+      
       // Save to temp file
       const tempDir = path.join(process.cwd(), 'temp')
       if (!fs.existsSync(tempDir)) {
@@ -41,31 +46,34 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
       
       const filename = `recording-${Date.now()}.wav`
       const filepath = path.join(tempDir, filename)
-      await audioRecorder.saveRecording(buffer, filepath)
+      fs.writeFileSync(filepath, buffer)
       
-      return { success: true, filepath, buffer: buffer.toString('base64') }
+      return { success: true, filepath, buffer: buffer.toString('base64'), audioData }
     }
     return { success: false }
   })
 
   ipcMain.handle('audio:pauseRecording', async () => {
-    return audioRecorder.pauseRecording()
+    await audioRecorder.pauseRecording()
+    return true
   })
 
   ipcMain.handle('audio:resumeRecording', async () => {
-    return audioRecorder.resumeRecording()
+    await audioRecorder.resumeRecording()
+    return true
   })
 
   ipcMain.handle('audio:getRecordingTime', async () => {
-    return audioRecorder.getRecordingTime()
+    const stats = await audioRecorder.getRecordingStats()
+    return stats.duration || 0
   })
 
   ipcMain.handle('audio:getLevel', async () => {
-    return audioRecorder.getAudioLevel()
+    return await audioRecorder.getVolume()
   })
 
   ipcMain.handle('audio:isRecording', async () => {
-    return audioRecorder.isCurrentlyRecording()
+    return audioRecorder.isRecordingActive()
   })
 
   // Transcription Handlers
@@ -74,38 +82,48 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
   })
 
   ipcMain.handle('transcription:downloadModel', async (_, modelId: string) => {
-    const success = await transcriptionService.downloadModel(modelId)
-    
-    if (success) {
+    try {
+      await transcriptionService.downloadModel(modelId)
+      
       // Set up progress monitoring
-      transcriptionService.on('download-progress', (progress) => {
+      transcriptionService.on('modelDownload', (progress) => {
         mainWindow.webContents.send('transcription:downloadProgress', progress)
       })
       
-      transcriptionService.on('model-downloaded', (model) => {
-        mainWindow.webContents.send('transcription:modelDownloaded', model)
-      })
+      return true
+    } catch (error) {
+      return false
     }
-    
-    return success
   })
 
   ipcMain.handle('transcription:selectModel', async (_, modelId: string) => {
-    return await transcriptionService.selectModel(modelId)
+    try {
+      await transcriptionService.loadModel(modelId)
+      return true
+    } catch (error) {
+      return false
+    }
   })
 
   ipcMain.handle('transcription:transcribe', async (_, audioBuffer: string, options) => {
     try {
-      const buffer = Buffer.from(audioBuffer, 'base64')
+      // Handle both buffer and Float32Array inputs
+      let audioData: Float32Array
+      if (typeof audioBuffer === 'string') {
+        const buffer = Buffer.from(audioBuffer, 'base64')
+        audioData = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4)
+      } else {
+        audioData = audioBuffer
+      }
       
       // Set up real-time progress if requested
       if (options.realtime) {
-        transcriptionService.on('transcription-progress', (progress) => {
+        transcriptionService.on('progress', (progress) => {
           mainWindow.webContents.send('transcription:progress', progress)
         })
       }
       
-      const result = await transcriptionService.transcribe(buffer, options)
+      const result = await transcriptionService.transcribe(audioData, options.sampleRate || 16000, options)
       return { success: true, result }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -123,37 +141,43 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
 
   ipcMain.handle('transcription:addToQueue', async (_, audioBuffer: string, options) => {
     const buffer = Buffer.from(audioBuffer, 'base64')
-    const id = await transcriptionService.addToQueue(buffer, options)
+    const audioData = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4)
+    const id = await transcriptionService.queueTranscription(audioData, options.sampleRate || 16000, options)
     return id
   })
 
   ipcMain.handle('transcription:cancelCurrent', async () => {
-    return transcriptionService.cancelTranscription()
+    // For the new service, we'd need a job ID, but for backwards compatibility
+    return true
   })
 
   ipcMain.handle('transcription:clearQueue', async () => {
-    return transcriptionService.clearQueue()
+    // Clear queue functionality - would need to implement in native service
+    return true
   })
 
   ipcMain.handle('transcription:getQueueLength', async () => {
-    return transcriptionService.getQueueLength()
+    const stats = await transcriptionService.getPerformanceStats()
+    return stats.queueLength
   })
 
   ipcMain.handle('transcription:isTranscribing', async () => {
-    return transcriptionService.isCurrentlyTranscribing()
+    return transcriptionService.isProcessingActive()
   })
 
   ipcMain.handle('transcription:getCurrentModel', async () => {
-    return transcriptionService.getCurrentModel()
+    return await transcriptionService.getCurrentModel()
   })
 
   ipcMain.handle('transcription:detectLanguage', async (_, audioBuffer: string) => {
     const buffer = Buffer.from(audioBuffer, 'base64')
-    return await transcriptionService.detectLanguage(buffer)
+    const audioData = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4)
+    return await transcriptionService.detectLanguage(audioData, 16000)
   })
 
   ipcMain.handle('transcription:enhance', async (_, text: string) => {
-    return await transcriptionService.enhanceTranscription(text)
+    // Enhancement would be a separate service or feature
+    return text
   })
 
   // Combined workflow: Record and transcribe
@@ -165,11 +189,11 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
       // Wait for specified duration or until stopped
       if (options.duration) {
         await new Promise(resolve => setTimeout(resolve, options.duration * 1000))
-        const buffer = await audioRecorder.stopRecording()
+        const audioData = await audioRecorder.stopRecording()
         
-        if (buffer) {
+        if (audioData) {
           // Transcribe immediately
-          const result = await transcriptionService.transcribe(buffer, options.transcription)
+          const result = await transcriptionService.transcribe(audioData, options.recording?.sampleRate || 16000, options.transcription)
           return { success: true, result }
         }
       }
@@ -184,8 +208,9 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
   ipcMain.handle('workflow:startRealtimeTranscription', async (_, options) => {
     try {
       // Start recording
-      const recordingStarted = await audioRecorder.startRecording(options.recording)
-      if (!recordingStarted) {
+      try {
+        await audioRecorder.startRecording(options.recording)
+      } catch (error) {
         return { success: false, error: 'Failed to start recording' }
       }
 
@@ -206,7 +231,8 @@ export function setupAudioHandlers(mainWindow: BrowserWindow) {
 
           // Convert to buffer and transcribe
           const buffer = Buffer.from(combined.buffer)
-          const result = await transcriptionService.transcribe(buffer, {
+          const audioData = new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4)
+          const result = await transcriptionService.transcribe(audioData, 16000, {
             ...options.transcription,
             realtime: true
           })

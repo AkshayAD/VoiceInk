@@ -3,8 +3,8 @@
     {
       "target_name": "audiorecorder",
       "sources": [
-        "src/native/audio-recorder/addon.cpp",
-        "src/native/audio-recorder/wasapi_recorder.cpp"
+        "src/native/wasapi_recorder.cpp",
+        "src/native/wasapi_binding.cpp"
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
@@ -50,8 +50,8 @@
     {
       "target_name": "whisperbinding",
       "sources": [
-        "src/native/whisper-binding/addon.cpp",
-        "src/native/whisper-binding/whisper_transcriber.cpp"
+        "src/native/whisper_transcription.cpp",
+        "src/native/whisper_binding.cpp"
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",

@@ -43,7 +43,7 @@ export function setupAutoUpdater(window: BrowserWindow) {
     }, 5000) // Wait 5 seconds after startup
   }
 
-  console.log('✅ Auto-updater configured')</
+  console.log('Auto-updater configured')
 }
 
 function setupAutoUpdaterEvents() {
