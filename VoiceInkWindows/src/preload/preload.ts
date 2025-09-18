@@ -131,13 +131,56 @@ const electronAPI = {
   
   // System operations
   system: {
-    getHotkeys: () => ipcRenderer.invoke('system:getHotkeys'),
-    registerHotkey: (accelerator: string, callback: () => void) => 
-      ipcRenderer.invoke('system:registerHotkey', accelerator, callback),
-    unregisterHotkey: (accelerator: string) => 
-      ipcRenderer.invoke('system:unregisterHotkey', accelerator),
     showInFolder: (filepath: string) => ipcRenderer.invoke('system:showInFolder', filepath),
     openExternal: (url: string) => ipcRenderer.invoke('system:openExternal', url)
+  },
+  
+  // Global hotkeys
+  hotkeys: {
+    get: () => ipcRenderer.invoke('hotkeys:get'),
+    set: (hotkeys: any) => ipcRenderer.invoke('hotkeys:set', hotkeys),
+    test: (accelerator: string) => ipcRenderer.invoke('hotkeys:test', accelerator),
+    reset: () => ipcRenderer.invoke('hotkeys:reset'),
+    onHotkey: (action: string, callback: () => void) => {
+      ipcRenderer.on(`hotkey:${action}`, callback)
+    },
+    offHotkey: (action: string, callback: () => void) => {
+      ipcRenderer.removeListener(`hotkey:${action}`, callback)
+    }
+  },
+  
+  // Notifications
+  notifications: {
+    show: (notification: { title: string; body: string; type?: string }) => 
+      ipcRenderer.invoke('notifications:show', notification)
+  },
+  
+  // Auto-updater
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    getSettings: () => ipcRenderer.invoke('update:getSettings'),
+    setSettings: (settings: any) => ipcRenderer.invoke('update:setSettings', settings),
+    getCurrentVersion: () => ipcRenderer.invoke('update:getCurrentVersion'),
+    onUpdateAvailable: (callback: (info: any) => void) => {
+      ipcRenderer.on('update:available', (_event, info) => callback(info))
+    },
+    onUpdateNotAvailable: (callback: (info: any) => void) => {
+      ipcRenderer.on('update:notAvailable', (_event, info) => callback(info))
+    },
+    onDownloadProgress: (callback: (progress: any) => void) => {
+      ipcRenderer.on('update:downloadProgress', (_event, progress) => callback(progress))
+    },
+    onUpdateDownloaded: (callback: (info: any) => void) => {
+      ipcRenderer.on('update:downloaded', (_event, info) => callback(info))
+    },
+    onUpdateError: (callback: (error: any) => void) => {
+      ipcRenderer.on('update:error', (_event, error) => callback(error))
+    },
+    onChecking: (callback: () => void) => {
+      ipcRenderer.on('update:checking', callback)
+    }
   },
   
   // Remove all listeners for a channel

@@ -3,6 +3,11 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupAudioHandlers, cleanupAudioHandlers } from './ipc/audioHandlers'
 import { registerWindowHandlers } from './handlers/windowHandlers'
+import { registerHotkeyHandlers, cleanupHotkeys } from './handlers/hotkeyHandlers'
+import { createSystemTray, destroyTray } from './handlers/trayHandlers'
+import { setupAutoUpdater } from './handlers/updateHandlers'
+import { registerExportHandlers } from './handlers/exportHandlers'
+import { setupAnalytics, trackAppStart, trackAppExit } from './handlers/analyticsHandlers'
 import Store from 'electron-store'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -205,10 +210,16 @@ app.whenReady().then(() => {
   console.log('App ready, creating window...')
   createWindow()
 
-  // Setup audio and transcription handlers after window is created
+  // Setup all handlers after window is created
   if (mainWindow) {
     setupAudioHandlers(mainWindow)
     registerWindowHandlers(mainWindow)
+    registerHotkeyHandlers(mainWindow)
+    createSystemTray(mainWindow)
+    setupAutoUpdater(mainWindow)
+    registerExportHandlers()
+    setupAnalytics()
+    trackAppStart()
   }
 
   app.on('activate', function () {
@@ -218,6 +229,9 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   cleanupAudioHandlers()
+  cleanupHotkeys()
+  destroyTray()
+  trackAppExit()
   if (process.platform !== 'darwin') {
     app.quit()
   }
