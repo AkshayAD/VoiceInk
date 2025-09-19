@@ -5,7 +5,9 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { RecordingButton } from '../features/RecordingButton'
 import { AudioLevelMeter } from '../features/AudioLevelMeter'
-import { TranscriptionDisplay } from '../features/TranscriptionDisplay'
+import { EnhancedTranscriptionDisplay } from '../features/EnhancedTranscriptionDisplay'
+import { AudioWaveform } from '../features/AudioWaveform'
+import { LanguageSelector } from '../ui/LanguageSelector'
 import { BrowserAudioRecorder } from '../../services/browserAudioRecorder'
 
 interface RecorderPageProps {
@@ -21,6 +23,9 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
   const [transcriptionSegments, setTranscriptionSegments] = useState<any[]>([])
   const [audioDevices, setAudioDevices] = useState<any[]>([])
   const [selectedDevice, setSelectedDevice] = useState<string>('')
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('auto')
+  const [audioData, setAudioData] = useState<number[]>([])
+  const [transcriptionResult, setTranscriptionResult] = useState<any>(null)
   
   const audioRecorderRef = useRef<BrowserAudioRecorder | null>(null)
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -46,6 +51,12 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
     
     audioRecorderRef.current.on('audioLevel', (level) => {
       setAudioLevel(level * 100)
+      // Add to waveform data
+      setAudioData(prev => {
+        const newData = [...prev, level * 100]
+        // Keep only last 100 samples for performance
+        return newData.slice(-100)
+      })
     })
     
     audioRecorderRef.current.on('error', (error) => {
@@ -237,10 +248,18 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
             Professional voice recording with real-time AI transcription
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          <Settings size={16} className="mr-2" />
-          Recording Settings
-        </Button>
+        <div className="flex items-center gap-4">
+          <LanguageSelector
+            value={selectedLanguage}
+            onChange={setSelectedLanguage}
+            variant="compact"
+            className="w-48"
+          />
+          <Button variant="outline" size="sm">
+            <Settings size={16} className="mr-2" />
+            Recording Settings
+          </Button>
+        </div>
       </div>
 
       {/* Recording Controls Section */}
@@ -304,11 +323,18 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
               </div>
             </div>
 
-            {/* Audio Level Meter */}
+            {/* Audio Visualization */}
             <div className="space-y-2">
               <div className="text-sm text-center text-muted-foreground">
-                Audio Level
+                Audio Visualization
               </div>
+              <AudioWaveform
+                audioData={audioData}
+                isRecording={isRecording && !isPaused}
+                height={80}
+                style="bars"
+                color="#3b82f6"
+              />
               <AudioLevelMeter
                 isActive={isRecording && !isPaused}
                 level={audioLevel}
@@ -321,22 +347,18 @@ export const RecorderPage: React.FC<RecorderPageProps> = () => {
 
         {/* Live Transcription */}
         <div className="lg:col-span-2 h-96 lg:h-auto">
-          <TranscriptionDisplay
+          <EnhancedTranscriptionDisplay
+            result={transcriptionResult}
             segments={transcriptionSegments}
             isLive={isRecording && !isPaused}
             currentTime={recordingTime}
-            showTimestamps={true}
-            showConfidence={true}
-            onCopy={(text) => {
-              navigator.clipboard.writeText(text)
-              // TODO: Show success toast
+            onSegmentClick={(segment) => {
+              console.log('Segment clicked:', segment)
+              // Jump to timestamp if audio player is available
             }}
-            onEdit={(segmentId, newText) => {
-              setTranscriptionSegments(prev =>
-                prev.map(seg =>
-                  seg.id === segmentId ? { ...seg, text: newText } : seg
-                )
-              )
+            onSpeakerClick={(speakerId) => {
+              console.log('Speaker clicked:', speakerId)
+              // Filter by speaker
             }}
           />
         </div>
