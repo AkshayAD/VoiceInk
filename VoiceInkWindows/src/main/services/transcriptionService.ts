@@ -79,25 +79,35 @@ class TranscriptionService extends EventEmitter {
       this.isUsingNative = true
       console.log('✅ TranscriptionService: Using native Whisper.cpp implementation')
       
-      // Initialize native module
-      await this.nativeModule.initialize()
+      // Initialize native module if it has an initialize method
+      if (this.nativeModule && typeof this.nativeModule.initialize === 'function') {
+        await this.nativeModule.initialize()
+      }
       
-      // Setup callbacks
-      this.nativeModule.setProgressCallback((progress: any) => {
-        this.emit('progress', progress)
-      })
+      // Setup callbacks if available
+      if (this.nativeModule.setProgressCallback && typeof this.nativeModule.setProgressCallback === 'function') {
+        this.nativeModule.setProgressCallback((progress: any) => {
+          this.emit('progress', progress)
+        })
+      }
       
-      this.nativeModule.setPartialResultCallback((jobId: string, result: TranscriptionResult) => {
-        this.emit('partialResult', jobId, result)
-      })
+      if (this.nativeModule.setPartialResultCallback && typeof this.nativeModule.setPartialResultCallback === 'function') {
+        this.nativeModule.setPartialResultCallback((jobId: string, result: TranscriptionResult) => {
+          this.emit('partialResult', jobId, result)
+        })
+      }
       
-      this.nativeModule.setModelDownloadCallback((modelId: string, progress: number, status: string) => {
-        this.emit('modelDownload', { modelId, progress, status })
-      })
+      if (this.nativeModule.setModelDownloadCallback && typeof this.nativeModule.setModelDownloadCallback === 'function') {
+        this.nativeModule.setModelDownloadCallback((modelId: string, progress: number, status: string) => {
+          this.emit('modelDownload', { modelId, progress, status })
+        })
+      }
       
     } catch (error) {
       // Fallback to mock implementation
-      console.log('⚠️ TranscriptionService: Native module not available, using mock implementation')
+      console.log('⚠️ TranscriptionService: Native Whisper.cpp module not available, falling back to mock implementation')
+      console.log(`   Module path attempted: ${path.join(__dirname, '../../build/Release/whisperbinding.node')}`)
+      console.log(`   Error details: ${error instanceof Error ? error.message : error}`)
       this.mockModule = new MockTranscriptionService()
       this.setupMockEventHandlers()
       this.isUsingNative = false

@@ -37,22 +37,36 @@ class AudioRecorder extends EventEmitter {
       this.isUsingNative = true
       console.log('✅ AudioRecorder: Using native WASAPI implementation')
       
-      // Initialize native module callbacks
-      this.nativeModule.setLevelCallback((level: number) => {
-        this.emit('level', level)
-      })
+      // Initialize native module if it has an init method
+      if (this.nativeModule && typeof this.nativeModule.initialize === 'function') {
+        await this.nativeModule.initialize()
+      }
       
-      this.nativeModule.setDataCallback((audioData: Float32Array, sampleRate: number) => {
-        this.emit('data', audioData, sampleRate)
-      })
+      // Set up event callbacks if available
+      if (this.nativeModule.setLevelCallback && typeof this.nativeModule.setLevelCallback === 'function') {
+        this.nativeModule.setLevelCallback((level: number, peak: number) => {
+          this.emit('level', level)
+          this.emit('peak', peak)
+        })
+      }
       
-      this.nativeModule.setErrorCallback((error: string) => {
-        this.emit('error', new Error(error))
-      })
+      if (this.nativeModule.setDataCallback && typeof this.nativeModule.setDataCallback === 'function') {
+        this.nativeModule.setDataCallback((audioData: Float32Array, sampleRate: number, timestamp: number) => {
+          this.emit('data', audioData, sampleRate, timestamp)
+        })
+      }
+      
+      if (this.nativeModule.setErrorCallback && typeof this.nativeModule.setErrorCallback === 'function') {
+        this.nativeModule.setErrorCallback((error: string) => {
+          this.emit('error', new Error(error))
+        })
+      }
       
     } catch (error) {
       // Fallback to mock implementation
-      console.log('⚠️ AudioRecorder: Native module not available, using mock implementation')
+      console.log('⚠️ AudioRecorder: Native WASAPI module not available, falling back to mock implementation')
+      console.log(`   Module path attempted: ${path.join(__dirname, '../../build/Release/audiorecorder.node')}`)
+      console.log(`   Error details: ${error instanceof Error ? error.message : error}`)
       this.mockModule = new MockAudioRecorder()
       this.setupMockEventHandlers()
       this.isUsingNative = false

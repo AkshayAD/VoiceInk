@@ -3,12 +3,13 @@
     {
       "target_name": "whisper-binding",
       "sources": [
-        "whisper-binding/whisper_wrapper.cpp",
+        "whisper-binding/whisper_transcriber.cpp",
         "whisper-binding/addon.cpp"
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
-        "../../../whisper.cpp"
+        "../../../whisper.cpp",
+        "./whisper-binding"
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
@@ -21,13 +22,18 @@
       "defines": ["NAPI_CPP_EXCEPTIONS"],
       "conditions": [
         ["OS=='win'", {
-          "defines": ["_HAS_EXCEPTIONS=1"],
+          "defines": ["_HAS_EXCEPTIONS=1", "_WIN32_WINNT=0x0600"],
           "msvs_settings": {
             "VCCLCompilerTool": {
               "ExceptionHandling": 1,
               "AdditionalOptions": ["/std:c++17"]
             }
-          }
+          },
+          "libraries": [
+            "-lole32",
+            "-luuid",
+            "-lrpcrt4"
+          ]
         }]
       ]
     },
@@ -38,21 +44,25 @@
         "audio-recorder/addon.cpp"
       ],
       "include_dirs": [
-        "<!@(node -p \"require('node-addon-api').include\")"
+        "<!@(node -p \"require('node-addon-api').include\")",
+        "./audio-recorder"
       ],
       "dependencies": [
         "<!(node -p \"require('node-addon-api').gyp\")"
       ],
       "libraries": [
-        "-lole32.lib",
-        "-lwinmm.lib",
-        "-lksuser.lib"
+        "-lole32",
+        "-lwinmm",
+        "-lksuser",
+        "-luuid",
+        "-lrpcrt4"
       ],
       "conditions": [
         ["OS=='win'", {
-          "defines": ["_WIN32_WINNT=0x0600"],
+          "defines": ["_WIN32_WINNT=0x0600", "_HAS_EXCEPTIONS=1"],
           "msvs_settings": {
             "VCCLCompilerTool": {
+              "ExceptionHandling": 1,
               "AdditionalOptions": ["/std:c++17"]
             }
           }

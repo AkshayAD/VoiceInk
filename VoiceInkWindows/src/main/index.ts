@@ -128,9 +128,11 @@ class VoiceInkApp {
     // Cleanup on quit
     app.on('before-quit', () => {
       this.isQuitting = true
-      globalShortcut.unregisterAll()
+      this.hotkeyManager.cleanup()
+      this.windowDetector.cleanup()
       this.audioRecorder.cleanup()
       this.whisperService.cleanup()
+      // Note: DatabaseService doesn't have a general cleanup method
     })
   }
 
@@ -248,21 +250,65 @@ class VoiceInkApp {
   }
 
   private setupSystemTray() {
-    // Create tray icon
-    const icon = nativeImage.createFromPath(join(__dirname, '../../resources/icons/tray.png'))
-    this.tray = new Tray(icon)
-    this.tray.setToolTip('VoiceInk - Voice to Text')
+    try {
+      // Create tray icon with fallback
+      let icon
+      const iconPath = join(__dirname, '../../resources/icons/tray.png')
+      
+      try {
+        icon = nativeImage.createFromPath(iconPath)
+        if (icon.isEmpty()) {
+          throw new Error('Icon is empty')
+        }
+      } catch (iconError) {
+        console.warn('Failed to load tray icon, using fallback:', iconError.message)
+        // Create a simple fallback icon
+        icon = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAdgAAAHYBTnsmCAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAFYSURBVDiNpZM9SwNBEIafgwQLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sLwcJCG1sL')
+      }
 
-    // Create context menu
+      this.tray = new Tray(icon)
+      this.updateTrayTooltip()
+
+      // Handle tray click
+      this.tray.on('click', () => {
+        if (this.mainWindow) {
+          if (this.mainWindow.isVisible()) {
+            this.mainWindow.hide()
+          } else {
+            this.mainWindow.show()
+            this.mainWindow.focus()
+          }
+        }
+      })
+
+      this.updateTrayMenu()
+      console.log('System tray created successfully')
+    } catch (err) {
+      console.error('Failed to create system tray:', err)
+    }
+  }
+
+  private updateTrayMenu() {
+    if (!this.tray) return
+
+    const isRecording = this.audioRecorder.isRecording()
+    const hotkeys = store.get('hotkeys') as any
+
+    // Create dynamic context menu
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Show VoiceInk',
+        label: this.mainWindow?.isVisible() ? 'Hide VoiceInk' : 'Show VoiceInk',
         click: () => {
-          this.mainWindow?.show()
+          if (this.mainWindow) {
+            this.mainWindow.isVisible() 
+              ? this.mainWindow.hide() 
+              : this.mainWindow.show()
+          }
         }
       },
       {
         label: 'Toggle Mini Recorder',
+        accelerator: hotkeys.toggleMiniRecorder,
         click: () => {
           if (this.miniRecorderWindow) {
             this.miniRecorderWindow.isVisible() 
@@ -275,23 +321,59 @@ class VoiceInkApp {
       },
       { type: 'separator' },
       {
-        label: 'Start Recording',
-        accelerator: store.get('hotkeys.toggleRecording') as string,
+        label: isRecording ? 'Stop Recording' : 'Start Recording',
+        accelerator: hotkeys.toggleRecording,
         click: () => {
           this.toggleRecording()
+        }
+      },
+      {
+        label: 'Paste Last Transcription',
+        accelerator: hotkeys.pasteLastTranscription,
+        enabled: true,
+        click: async () => {
+          const lastTranscription = await this.databaseService.getLastTranscription()
+          if (lastTranscription) {
+            this.clipboardManager.pasteText(lastTranscription.text)
+          }
         }
       },
       { type: 'separator' },
       {
         label: 'Settings',
         click: () => {
-          this.mainWindow?.show()
-          this.mainWindow?.webContents.send('navigate', '/settings')
+          if (this.mainWindow) {
+            this.mainWindow.show()
+            this.mainWindow.focus()
+            this.mainWindow.webContents.send('navigate', '/settings')
+          }
+        }
+      },
+      {
+        label: 'History',
+        click: () => {
+          if (this.mainWindow) {
+            this.mainWindow.show()
+            this.mainWindow.focus()
+            this.mainWindow.webContents.send('navigate', '/history')
+          }
         }
       },
       { type: 'separator' },
       {
-        label: 'Quit',
+        label: 'About VoiceInk',
+        click: () => {
+          if (this.mainWindow) {
+            this.mainWindow.show()
+            this.mainWindow.focus()
+            this.mainWindow.webContents.send('navigate', '/about')
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit VoiceInk',
+        accelerator: 'Ctrl+Q',
         click: () => {
           this.isQuitting = true
           app.quit()
@@ -300,41 +382,67 @@ class VoiceInkApp {
     ])
 
     this.tray.setContextMenu(contextMenu)
+  }
 
-    // Handle tray click
-    this.tray.on('click', () => {
-      this.mainWindow?.isVisible() 
-        ? this.mainWindow.hide() 
-        : this.mainWindow?.show()
-    })
+  private updateTrayTooltip() {
+    if (!this.tray) return
+
+    const isRecording = this.audioRecorder.isRecording()
+    const status = isRecording ? 'Recording' : 'Ready'
+    const activeWindow = this.windowDetector.getCurrentWindow()
+    const context = activeWindow ? ` - ${activeWindow.name}` : ''
+    
+    this.tray.setToolTip(`VoiceInk - ${status}${context}`)
   }
 
   private registerGlobalShortcuts() {
     // Get hotkey settings
     const hotkeys = store.get('hotkeys') as any
 
-    // Register toggle recording
-    globalShortcut.register(hotkeys.toggleRecording, () => {
-      this.toggleRecording()
-    })
+    // Setup callbacks for the HotkeyManager
+    const callbacks = {
+      toggleRecording: () => this.toggleRecording(),
+      toggleMiniRecorder: () => {
+        if (this.miniRecorderWindow) {
+          this.miniRecorderWindow.isVisible() 
+            ? this.miniRecorderWindow.hide() 
+            : this.miniRecorderWindow.show()
+        } else {
+          this.createMiniRecorderWindow()
+        }
+      },
+      pasteLastTranscription: async () => {
+        const lastTranscription = await this.databaseService.getLastTranscription()
+        if (lastTranscription) {
+          this.clipboardManager.pasteText(lastTranscription.text)
+        }
+      }
+    }
 
-    // Register toggle mini recorder
-    globalShortcut.register(hotkeys.toggleMiniRecorder, () => {
-      if (this.miniRecorderWindow) {
-        this.miniRecorderWindow.isVisible() 
-          ? this.miniRecorderWindow.hide() 
-          : this.miniRecorderWindow.show()
-      } else {
-        this.createMiniRecorderWindow()
+    // Use HotkeyManager for better conflict detection and error handling
+    this.hotkeyManager.registerAll(hotkeys, callbacks)
+
+    // Listen for hotkey events
+    this.hotkeyManager.on('hotkey-triggered', (event) => {
+      console.log(`Hotkey triggered: ${event.action} (${event.accelerator})`)
+      // Update tray tooltip to show last hotkey used
+      if (this.tray) {
+        this.tray.setToolTip(`VoiceInk - Last: ${event.action}`)
+        // Reset tooltip after 3 seconds
+        setTimeout(() => {
+          if (this.tray) {
+            const recordingStatus = this.audioRecorder.isRecording() ? '🔴 Recording' : '⏹️ Ready'
+            this.tray.setToolTip(`VoiceInk - ${recordingStatus}`)
+          }
+        }, 3000)
       }
     })
 
-    // Register paste last transcription
-    globalShortcut.register(hotkeys.pasteLastTranscription, async () => {
-      const lastTranscription = await this.databaseService.getLastTranscription()
-      if (lastTranscription) {
-        this.clipboardManager.pasteText(lastTranscription.text)
-      }
+    // Log successful registration
+    const registered = this.hotkeyManager.getRegistered()
+    console.log(`Registered ${registered.size} global hotkeys:`)
+    registered.forEach((accelerator, action) => {
+      console.log(`  ${action}: ${accelerator}`)
     })
   }
 
@@ -342,6 +450,10 @@ class VoiceInkApp {
     if (this.audioRecorder.isRecording()) {
       // Stop recording and transcribe
       const audioBuffer = await this.audioRecorder.stopRecording()
+      
+      // Update tray
+      this.updateTrayMenu()
+      this.updateTrayTooltip()
       
       // Notify UI
       this.mainWindow?.webContents.send('recording-stopped')
@@ -351,7 +463,7 @@ class VoiceInkApp {
       const transcription = await this.whisperService.transcribe(audioBuffer)
       
       // Save to database
-      const activeWindow = this.windowDetector.getActiveWindow()
+      const activeWindow = this.windowDetector.getCurrentWindow()
       await this.databaseService.saveTranscription({
         text: transcription.text,
         model: this.whisperService.currentModel,
@@ -372,6 +484,10 @@ class VoiceInkApp {
     } else {
       // Start recording
       await this.audioRecorder.startRecording()
+      
+      // Update tray
+      this.updateTrayMenu()
+      this.updateTrayTooltip()
       
       // Notify UI
       this.mainWindow?.webContents.send('recording-started')

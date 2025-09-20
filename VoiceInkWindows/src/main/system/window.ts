@@ -48,11 +48,20 @@ export class WindowDetector extends EventEmitter {
           
           [DllImport("user32.dll", SetLastError=true)]
           static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+          [DllImport("user32.dll")]
+          static extern bool IsWindow(IntPtr hWnd);
           
           public static string GetActiveWindowInfo() {
             IntPtr hwnd = GetForegroundWindow();
-            StringBuilder title = new StringBuilder(256);
-            GetWindowText(hwnd, title, 256);
+            
+            // Validate window handle
+            if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) {
+              return "0|Desktop|Desktop||";
+            }
+            
+            StringBuilder title = new StringBuilder(512);
+            GetWindowText(hwnd, title, 512);
             
             uint processId;
             GetWindowThreadProcessId(hwnd, out processId);
@@ -63,14 +72,19 @@ export class WindowDetector extends EventEmitter {
               string mainModule = "";
               
               try {
-                mainModule = process.MainModule.FileName;
+                if (process.MainModule != null) {
+                  mainModule = process.MainModule.FileName;
+                }
               } catch {
                 // Access denied for some system processes
               }
               
               return processId + "|" + processName + "|" + title.ToString() + "|" + mainModule;
-            } catch {
-              return processId + "|Unknown|" + title.ToString() + "|";
+            } catch (ArgumentException) {
+              // Process not found
+              return processId + "|ProcessNotFound|" + title.ToString() + "|";
+            } catch (Exception ex) {
+              return processId + "|Error:" + ex.GetType().Name + "|" + title.ToString() + "|";
             }
           }
         }
@@ -78,8 +92,23 @@ export class WindowDetector extends EventEmitter {
         [WindowInfo]::GetActiveWindowInfo()
       `
 
-      const { stdout } = await execAsync(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`)
-      const [pid, name, title, path] = stdout.trim().split('|')
+      const { stdout, stderr } = await execAsync(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`)
+      
+      if (stderr && stderr.trim()) {
+        console.warn('PowerShell stderr:', stderr.trim())
+      }
+
+      const output = stdout.trim()
+      if (!output) {
+        return null
+      }
+
+      const [pid, name, title, path] = output.split('|')
+
+      // Skip if it's our own VoiceInk app
+      if (name && (name.toLowerCase().includes('voiceink') || name.toLowerCase().includes('electron'))) {
+        return null
+      }
 
       const window: ActiveWindow = {
         name: name || 'Unknown',
