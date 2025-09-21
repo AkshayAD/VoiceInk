@@ -1,6 +1,23 @@
-# VoiceInk for Windows
+# 🎙️ VoiceInk Windows
 
-A complete Windows port of VoiceInk - Voice to text application with local AI transcription using whisper.cpp.
+**Professional voice-to-text application with AI-powered transcription for Windows**
+
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/voiceink/voiceink-windows)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/voiceink/voiceink-windows)
+[![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-99%25-blue.svg)](https://github.com/voiceink/voiceink-windows)
+
+## ⚡ One-Click Setup
+
+**Ready to use in 2 minutes with real transcription!**
+
+1. **Download**: `git clone https://github.com/yourusername/voiceink-windows.git`
+2. **Setup**: Right-click `SETUP.bat` → "Run as administrator"  
+3. **Start**: Double-click `START_VOICEINK.bat`
+
+**That's it!** VoiceInk launches with working audio recording and AI transcription.
+
+[📖 **Full Setup Guide →**](DOWNLOAD_AND_RUN.md)
 
 ## Features
 

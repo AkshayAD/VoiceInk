@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
 import * as path from 'path'
 import { MockTranscriptionService } from './mockTranscriptionService'
+import { CloudTranscriptionService } from './cloudTranscriptionService'
 
 interface TranscriptionModel {
   id: string
@@ -61,8 +62,9 @@ interface TranscriptionOptions {
 
 class TranscriptionService extends EventEmitter {
   private nativeModule: any = null
+  private cloudModule: CloudTranscriptionService | null = null
   private mockModule: any = null
-  private isUsingNative: boolean = false
+  private activeImplementation: 'native' | 'cloud' | 'mock' = 'mock'
   private currentModel: string | null = null
   private isProcessing: boolean = false
 
@@ -72,11 +74,25 @@ class TranscriptionService extends EventEmitter {
   }
 
   private async initializeModule() {
+    // Priority 1: Try Cloud Transcription (always works)
     try {
-      // Try to load the native Whisper module
+      this.cloudModule = new CloudTranscriptionService()
+      if (this.cloudModule.isReady()) {
+        this.activeImplementation = 'cloud'
+        console.log('✅ TranscriptionService: Using Cloud API implementation')
+        console.log(`   Provider: ${this.cloudModule.getImplementationType()}`)
+        this.setupCloudEventHandlers()
+        return // Cloud is working, we're done
+      }
+    } catch (error) {
+      console.log('⚠️ Cloud transcription not available:', error)
+    }
+
+    // Priority 2: Try Native Whisper.cpp
+    try {
       const modulePath = path.join(__dirname, '../../build/Release/whisperbinding.node')
       this.nativeModule = require(modulePath)
-      this.isUsingNative = true
+      this.activeImplementation = 'native'
       console.log('✅ TranscriptionService: Using native Whisper.cpp implementation')
       
       // Initialize native module if it has an initialize method
@@ -84,6 +100,34 @@ class TranscriptionService extends EventEmitter {
         await this.nativeModule.initialize()
       }
       
+      this.setupNativeEventHandlers()
+      return // Native is working, we're done
+      
+    } catch (error) {
+      console.log('⚠️ TranscriptionService: Native Whisper.cpp module not available')
+      console.log(`   Module path attempted: ${path.join(__dirname, '../../build/Release/whisperbinding.node')}`)
+      console.log(`   Error details: ${error instanceof Error ? error.message : error}`)
+    }
+
+    // Priority 3: Fallback to Mock (always works)
+    console.log('⚠️ TranscriptionService: Using mock implementation (development mode)')
+    this.mockModule = new MockTranscriptionService()
+    this.activeImplementation = 'mock'
+    this.setupMockEventHandlers()
+  }
+
+  private setupCloudEventHandlers() {
+    if (this.cloudModule) {
+      this.cloudModule.on('started', () => this.emit('started'))
+      this.cloudModule.on('progress', (progress: any) => this.emit('progress', progress))
+      this.cloudModule.on('completed', (result: any) => this.emit('completed', result))
+      this.cloudModule.on('error', (error: Error) => this.emit('error', error))
+      this.cloudModule.on('providerChanged', (provider: string) => this.emit('providerChanged', provider))
+    }
+  }
+
+  private setupNativeEventHandlers() {
+    if (this.nativeModule) {
       // Setup callbacks if available
       if (this.nativeModule.setProgressCallback && typeof this.nativeModule.setProgressCallback === 'function') {
         this.nativeModule.setProgressCallback((progress: any) => {
@@ -102,15 +146,6 @@ class TranscriptionService extends EventEmitter {
           this.emit('modelDownload', { modelId, progress, status })
         })
       }
-      
-    } catch (error) {
-      // Fallback to mock implementation
-      console.log('⚠️ TranscriptionService: Native Whisper.cpp module not available, falling back to mock implementation')
-      console.log(`   Module path attempted: ${path.join(__dirname, '../../build/Release/whisperbinding.node')}`)
-      console.log(`   Error details: ${error instanceof Error ? error.message : error}`)
-      this.mockModule = new MockTranscriptionService()
-      this.setupMockEventHandlers()
-      this.isUsingNative = false
     }
   }
 
@@ -126,35 +161,82 @@ class TranscriptionService extends EventEmitter {
   }
 
   async getAvailableModels(): Promise<TranscriptionModel[]> {
-    if (this.isUsingNative && this.nativeModule) {
-      return this.nativeModule.getAvailableModels()
-    } else if (this.mockModule) {
-      return this.mockModule.getAvailableModels()
+    switch (this.activeImplementation) {
+      case 'cloud':
+        // Cloud providers have their own model systems
+        return [{
+          id: 'openai-whisper-1',
+          name: 'OpenAI Whisper',
+          description: 'Cloud-based transcription via OpenAI API',
+          filename: '',
+          url: '',
+          size: 0,
+          downloaded: true,
+          loaded: true,
+          isMultilingual: true,
+          supportedLanguages: ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh'],
+          speed: 10,
+          accuracy: 95,
+          memoryUsage: 0
+        }]
+      case 'native':
+        return this.nativeModule?.getAvailableModels() || []
+      case 'mock':
+        return this.mockModule?.getAvailableModels() || []
+      default:
+        throw new Error('No transcription module available')
     }
-    throw new Error('No transcription module available')
   }
 
   async getCurrentModel(): Promise<TranscriptionModel | null> {
-    if (this.isUsingNative && this.nativeModule) {
-      return this.nativeModule.getCurrentModel()
-    } else if (this.mockModule) {
-      return this.mockModule.getCurrentModel()
+    switch (this.activeImplementation) {
+      case 'cloud':
+        const provider = this.cloudModule?.getCurrentProvider()
+        return provider ? {
+          id: provider.name,
+          name: provider.name,
+          description: `Cloud provider: ${provider.name}`,
+          filename: '',
+          url: '',
+          size: 0,
+          downloaded: true,
+          loaded: true,
+          isMultilingual: true,
+          supportedLanguages: ['en'],
+          speed: 10,
+          accuracy: 95,
+          memoryUsage: 0
+        } : null
+      case 'native':
+        return this.nativeModule?.getCurrentModel() || null
+      case 'mock':
+        return this.mockModule?.getCurrentModel() || null
+      default:
+        return null
     }
-    return null
   }
 
   async downloadModel(modelId: string): Promise<void> {
-    if (this.isUsingNative && this.nativeModule) {
-      return new Promise((resolve, reject) => {
-        this.nativeModule.downloadModel(modelId, (progress: number, status: string) => {
-          this.emit('modelDownload', { modelId, progress, status })
-          if (progress >= 1.0) resolve()
-        }).catch(reject)
-      })
-    } else if (this.mockModule) {
-      return this.mockModule.downloadModel(modelId)
+    switch (this.activeImplementation) {
+      case 'cloud':
+        // Cloud models don't need downloading
+        this.emit('modelDownload', { modelId, progress: 1.0, status: 'completed' })
+        return Promise.resolve()
+      case 'native':
+        if (this.nativeModule) {
+          return new Promise((resolve, reject) => {
+            this.nativeModule.downloadModel(modelId, (progress: number, status: string) => {
+              this.emit('modelDownload', { modelId, progress, status })
+              if (progress >= 1.0) resolve()
+            }).catch(reject)
+          })
+        }
+        break
+      case 'mock':
+        return this.mockModule?.downloadModel(modelId)
+      default:
+        throw new Error('No transcription module available')
     }
-    throw new Error('No transcription module available')
   }
 
   async loadModel(modelId: string): Promise<void> {
