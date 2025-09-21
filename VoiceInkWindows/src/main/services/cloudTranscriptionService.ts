@@ -67,6 +67,18 @@ export class CloudTranscriptionService extends EventEmitter {
    * Initialize cloud providers with API keys from environment or settings
    */
   private initializeProviders() {
+    // Google Gemini API (NEW - Best free tier!)
+    if (process.env.GEMINI_API_KEY) {
+      this.providers.set('gemini', {
+        name: 'Google Gemini',
+        apiKey: process.env.GEMINI_API_KEY,
+        endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+        model: 'gemini-1.5-flash',
+        maxFileSize: 20, // 20MB for inline, unlimited with Files API
+        supportedFormats: ['mp3', 'mp4', 'wav', 'webm', 'm4a', 'flac', 'ogg']
+      })
+    }
+
     // OpenAI Whisper API
     if (process.env.OPENAI_API_KEY) {
       this.providers.set('openai', {
@@ -155,6 +167,9 @@ export class CloudTranscriptionService extends EventEmitter {
 
       // Route to appropriate provider
       switch (options.provider || this.activeProvider) {
+        case 'gemini':
+          result = await this.transcribeWithGemini(audioBlob, options, provider)
+          break
         case 'openai':
           result = await this.transcribeWithOpenAI(audioBlob, options, provider)
           break
@@ -185,6 +200,95 @@ export class CloudTranscriptionService extends EventEmitter {
       throw error
     } finally {
       this.isTranscribing = false
+    }
+  }
+
+  /**
+   * Transcribe using Google Gemini API
+   */
+  private async transcribeWithGemini(
+    audioBlob: Blob,
+    options: TranscriptionOptions,
+    provider: TranscriptionProvider
+  ): Promise<TranscriptionResult> {
+    const buffer = Buffer.from(await audioBlob.arrayBuffer())
+    const base64Audio = buffer.toString('base64')
+    
+    this.emit('progress', { status: 'uploading', progress: 0.3 })
+    
+    const requestBody = {
+      contents: [{
+        parts: [
+          {
+            text: options.timestamps 
+              ? 'Transcribe this audio with timestamps in the format: [MM:SS] text'
+              : 'Transcribe this audio accurately. Include all spoken words.'
+          },
+          {
+            inline_data: {
+              mime_type: audioBlob.type || 'audio/webm',
+              data: base64Audio
+            }
+          }
+        ]
+      }],
+      generationConfig: {
+        temperature: options.temperature || 0.2,
+        maxOutputTokens: 8192
+      }
+    }
+    
+    this.emit('progress', { status: 'processing', progress: 0.6 })
+    
+    const response = await fetch(`${provider.endpoint}?key=${provider.apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    })
+    
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`Gemini API error: ${error}`)
+    }
+    
+    const data = await response.json()
+    
+    this.emit('progress', { status: 'completed', progress: 1.0 })
+    
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    
+    // Parse timestamps if present
+    let segments: TranscriptionSegment[] = []
+    if (options.timestamps && text.includes('[')) {
+      const lines = text.split('\n')
+      segments = lines.map(line => {
+        const match = line.match(/\[(\d+):(\d+)\]\s*(.*)/)
+        if (match) {
+          const minutes = parseInt(match[1])
+          const seconds = parseInt(match[2])
+          const startTime = minutes * 60 + seconds
+          return {
+            start: startTime,
+            end: startTime + 1,
+            text: match[3],
+            confidence: 0.95
+          }
+        }
+        return null
+      }).filter(Boolean) as TranscriptionSegment[]
+    }
+    
+    return {
+      text: text.replace(/\[\d+:\d+\]/g, '').trim(),
+      language: options.language || 'en',
+      duration: 0,
+      confidence: 0.95,
+      segments,
+      provider: 'gemini',
+      model: provider.model,
+      processingTime: 0
     }
   }
 
