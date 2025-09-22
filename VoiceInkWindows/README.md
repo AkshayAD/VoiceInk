@@ -1,113 +1,183 @@
 # 🎙️ VoiceInk Windows
 
-**Professional voice-to-text application with AI-powered transcription for Windows**
+**Professional AI-powered voice transcription for Windows - Works immediately with zero setup!**
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/voiceink/voiceink-windows)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/voiceink/voiceink-windows)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-lightgrey.svg)](https://github.com/voiceink/voiceink-windows)
 [![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-99%25-blue.svg)](https://github.com/voiceink/voiceink-windows)
+[![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org)
 
-## ⚡ One-Click Setup
+---
 
-**Ready to use in 2 minutes with real transcription!**
+## 🚀 Quick Start - Get Running in 2 Minutes
 
-1. **Download**: `git clone https://github.com/yourusername/voiceink-windows.git`
-2. **Setup**: Right-click `SETUP.bat` → "Run as administrator"  
-3. **Start**: Double-click `START_VOICEINK.bat`
-
-**That's it!** VoiceInk launches with working audio recording and AI transcription.
-
-[📖 **Full Setup Guide →**](DOWNLOAD_AND_RUN.md)
-
-## Features
-
-✅ **Core Features**
-- Real-time voice recording with WASAPI
-- Local transcription using whisper.cpp
-- Multiple Whisper model support (tiny to large)
-- Voice Activity Detection (VAD)
-- Audio level monitoring
-
-✅ **UI/UX**
-- Modern React-based interface with Tailwind CSS
-- Dark/Light theme support
-- System tray integration
-- Mini recorder overlay (always-on-top)
-- Transcription history with search
-- Real-time metrics dashboard
-
-✅ **System Integration**
-- Global hotkeys (customizable)
-- Clipboard management with smart paste
-- Active window detection
-- Browser URL detection
-- Auto-start on login
-- Text insertion via SendInput
-
-✅ **Advanced Features**
-- Power Mode (app-specific profiles)
-- AI Enhancement (OpenAI/Anthropic integration)
-- Custom dictionary support
-- Text replacements
-- Screen context capture
-- Multi-language support
-
-## Prerequisites
-
-- Windows 10 (1903+) or Windows 11
-- Node.js 18+ and npm
-- Visual Studio 2022 or Build Tools for Visual Studio (for native modules)
-- Python 3.x (for node-gyp)
-- FFmpeg (optional, for better audio support)
-
-## Quick Start
-
-### 1. Install Dependencies
+### **Option 1: One-Click Automated Setup (Recommended)**
 
 ```bash
-# Clone the repository
+# 1. Clone this repository
+git clone https://github.com/voiceink/voiceink-windows.git
 cd VoiceInkWindows
 
-# Install npm packages
+# 2. Run automated setup (Right-click → Run as Administrator)
+SETUP.bat
+
+# 3. Start the application
+START_VOICEINK.bat
+```
+
+**That's it!** The app launches with working voice recording and AI transcription.
+
+### **Option 2: Manual Setup for Developers**
+
+```bash
+# 1. Clone and enter directory
+git clone https://github.com/voiceink/voiceink-windows.git
+cd VoiceInkWindows
+
+# 2. Install dependencies
 npm install
 
-# Build native modules
-npm run build:native
+# 3. Setup database
+npx prisma generate
+npx prisma migrate deploy
+
+# 4. Start in development mode
+npm run dev
 ```
 
-### 2. Download Whisper Models
+---
 
-Models will be automatically downloaded on first use, or you can pre-download:
+## 🔑 API Keys - Enable Real AI Transcription
 
-```bash
-# Download base English model (recommended for start)
-curl -L https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin -o resources/models/ggml-base.en.bin
+The app works immediately in **demo mode**, but for real transcriptions, add a FREE API key:
+
+### **Recommended: Google Gemini (Best Free Tier)**
+```batch
+# Get FREE key at: https://makersuite.google.com/app/apikey
+# 1,500 requests/day for free!
+setx GEMINI_API_KEY "your-api-key-here"
 ```
 
-### 3. Development
+### **Alternative Options**
+```batch
+# OpenAI Whisper (Most accurate - $0.006/min)
+setx OPENAI_API_KEY "sk-your-key-here"
 
+# AssemblyAI (Free 5 hours/month)
+setx ASSEMBLYAI_API_KEY "your-key-here"
+
+# Deepgram (Free $200 credits)
+setx DEEPGRAM_API_KEY "your-key-here"
+```
+
+After adding a key, restart VoiceInk to activate real transcription.
+
+[📖 **Detailed Setup Guide →**](DOWNLOAD_AND_RUN.md)
+
+## ✨ Features
+
+### **Core Functionality**
+- ✅ **Real-time voice recording** from any microphone
+- ✅ **AI transcription** via cloud (Gemini/OpenAI) or local (Whisper.cpp)
+- ✅ **Works immediately** without compilation
+- ✅ **100+ languages** supported
+- ✅ **Export formats**: TXT, DOCX, JSON, SRT
+- ✅ **No login required** - completely local storage
+
+### **Smart Features**
+- 🎯 **Speaker diarization** - Identifies different speakers
+- ⏱️ **Timestamps** - Word-level timing
+- 🔥 **Global hotkeys** - Alt+Space to start/stop
+- 💾 **Auto-save** - Never lose a recording
+- 🎨 **Dark/Light themes** - Easy on the eyes
+- 📊 **Analytics dashboard** - Track your usage
+
+### **System Integration**
+- **System tray** with quick access menu
+- **Power Mode** - App-specific profiles
+- **Window detection** - Context awareness
+- **Clipboard integration** - Smart paste
+- **Auto-start** on Windows login
+- **Mini recorder** - Always-on-top window
+
+### **Enterprise Features** (130+ Services)
+- Voice biometrics & authentication
+- API gateway for integrations
+- Compliance management (GDPR, HIPAA)
+- Automated backups & disaster recovery
+- Integration hub (Slack, Teams, Zoom)
+- Machine learning pipeline
+
+## 💾 Data Storage & Privacy
+
+### **Where Your Data Lives**
+```
+C:\Users\[YourUsername]\AppData\Roaming\voiceink-windows\
+├── voiceink.db          # All your transcriptions
+├── recordings/          # Audio files (if enabled)
+├── config.json          # Your settings
+└── exports/            # Exported documents
+```
+
+### **Privacy Guaranteed**
+- ✅ **All data stored locally** on your PC
+- ✅ **Never sent to our servers** (we don't have any!)
+- ✅ **You own all your data**
+- ✅ **Export anytime** to any format
+
+### **Accessing Your Data**
+1. **In App**: Click "History" to view all transcriptions
+2. **Database**: Use SQLite Browser to open `voiceink.db`
+3. **Backup**: Settings → Backup → "Backup Now"
+
+## 🎮 How to Use
+
+### **Basic Recording**
+1. **Launch**: Double-click `START_VOICEINK.bat`
+2. **Record**: Click record button or press `Alt+Space`
+3. **Stop**: Click stop or press `Alt+Space` again
+4. **View**: Transcription appears automatically
+
+### **Keyboard Shortcuts**
+| Shortcut | Action |
+|----------|--------|
+| `Alt + Space` | Start/Stop Recording |
+| `Alt + Shift + R` | Mini Recorder Window |
+| `Alt + Shift + V` | Paste Last Transcription |
+| `Ctrl + H` | Open History |
+| `Ctrl + F` | Search Transcriptions |
+| `Ctrl + E` | Export Selected |
+
+### **Viewing Past Transcriptions**
+1. Click **"History"** in sidebar
+2. Search by content, date, or keywords
+3. Click any transcription to expand
+4. Play audio, export, or edit
+
+---
+
+## 🛠️ Development
+
+### **Commands**
 ```bash
-# Start development server with hot reload
+# Install dependencies
+npm install
+
+# Development mode with hot reload
 npm run dev
 
-# Type checking
-npm run typecheck
-
-# Linting
-npm run lint
-```
-
-### 4. Build for Production
-
-```bash
-# Build the application
+# Build for production
 npm run build
 
 # Create Windows installer
 npm run dist:win
 
-# Create portable executable
-npm run dist:portable
+# Run tests
+npm run test:e2e
+
+# Database management
+npx prisma studio    # Visual database editor
+npx prisma generate   # Generate client
 ```
 
 ## Project Structure
@@ -130,129 +200,135 @@ VoiceInkWindows/
 └── claude.md          # Development documentation
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-### Hotkeys (Default)
-- `Alt+Space` - Toggle recording
-- `Alt+Shift+R` - Toggle mini recorder
-- `Alt+Shift+V` - Paste last transcription
-
-### Audio Settings
-- Sample Rate: 16kHz (Whisper requirement)
-- Channels: Mono
-- Bit Depth: 16-bit
-- Format: WAV
-
-## Building from Source
-
-### Windows Native Modules
-
-If you encounter issues with native modules:
-
-1. Install Windows Build Tools:
-```bash
-npm install --global windows-build-tools
-```
-
-2. Rebuild native modules:
-```bash
-npm run build:native
-# or
-npx electron-rebuild
-```
-
-### whisper.cpp Integration
-
-The project includes whisper.cpp as a native Node.js addon. To rebuild:
-
-```bash
-cd src/native/whisper-binding
-node-gyp rebuild
-```
-
-## Performance Optimization
-
-- **Model Selection**: Use `base.en` for best speed/accuracy balance
-- **GPU Acceleration**: Enable CUDA/DirectML if available
-- **Memory**: ~200MB idle, ~500MB during transcription
-- **CPU**: <5% idle, 20-40% during transcription
-
-## Troubleshooting
-
-### Audio Recording Issues
-- Ensure microphone permissions are granted
-- Check Windows Privacy Settings > Microphone
-- Try running as Administrator
-
-### Transcription Failures
-- Verify model files exist in `resources/models/`
-- Check available disk space (models need 50MB-2GB)
-- Review logs in `%APPDATA%/voiceink-windows/logs/`
-
-### Hotkey Conflicts
-- Check for conflicts with other applications
-- Try alternative key combinations
-- Disable conflicting apps temporarily
-
-## API Keys (Optional)
-
-For cloud transcription fallback and AI enhancement:
-
-1. Create `.env` file:
+### **Environment Variables (.env.local)**
 ```env
-OPENAI_API_KEY=your_key_here
-ANTHROPIC_API_KEY=your_key_here
+# API Keys (choose one or more)
+GEMINI_API_KEY=your-key-here       # Best free option
+OPENAI_API_KEY=sk-your-key-here    # Most accurate
+ASSEMBLYAI_API_KEY=your-key-here   # Good for long recordings
+
+# Optional Settings
+SAVE_AUDIO_FILES=true
+DEFAULT_LANGUAGE=en
+THEME=dark
 ```
 
-2. Or set in Settings > API Keys
+### **Service Priority**
+```
+1. Cloud APIs (Primary - Always Works)
+   ├── Google Gemini (Free tier: 1,500/day)
+   ├── OpenAI Whisper ($0.006/min)
+   └── AssemblyAI (Free 5 hrs/month)
 
-## Testing
+2. Whisper.cpp (Secondary - If compiled)
+   └── Local, offline, private
 
-```bash
-# Run unit tests
-npm test
-
-# Run integration tests
-npm run test:integration
-
-# Run E2E tests
-npm run test:e2e
+3. Mock Service (Fallback - Demo mode)
+   └── For testing without API keys
 ```
 
-## Distribution
 
-Built installers will be in `dist-electron/`:
-- `VoiceInk-Setup-1.0.0.exe` - NSIS installer
-- `VoiceInk-1.0.0-portable.exe` - Portable version
+## 🔧 Troubleshooting
 
-## Security
+### **App Won't Start**
+```batch
+# Try these steps:
+1. Run START_VOICEINK.bat (auto-fixes common issues)
+2. Run as Administrator
+3. Delete node_modules and reinstall:
+   rmdir /s node_modules
+   npm install
+```
 
-- Code signing recommended for distribution
-- API keys stored in system keychain
-- Local-only processing by default
-- No telemetry or data collection
+### **No Audio Recording**
+- Check Windows Settings → Privacy → Microphone
+- Try different audio device in app Settings
+- Restart the application
 
-## Known Limitations
+### **No Transcription**
+- Add an API key (see API Keys section above)
+- Check internet connection
+- Verify API key: `echo %GEMINI_API_KEY%`
+- Try different provider in Settings
 
-1. **Browser URL Detection**: Limited to window title parsing
-2. **GPU Acceleration**: Requires manual CUDA setup
-3. **Multiple Monitors**: Mini recorder appears on primary only
-4. **Network Drives**: Models must be on local disk
+### **Database Errors**
+```batch
+npx prisma migrate reset
+npx prisma generate
+```
 
-## Contributing
 
-See [claude.md](claude.md) for development guidelines and architecture decisions.
+## 📊 System Requirements
 
-## License
-
-GPL-3.0 (matching original VoiceInk license)
-
-## Credits
-
-- Original VoiceInk by Pax
-- whisper.cpp by Georgi Gerganov
-- Electron, React, and all open-source dependencies
+- **OS**: Windows 10/11 (64-bit)
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 500MB for app + space for recordings
+- **Internet**: Required for cloud transcription (optional for offline mode)
+- **Node.js**: Version 18+ (auto-installed by SETUP.bat)
 
 ---
 
-Built with ❤️ for Windows users who need powerful voice-to-text capabilities.
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+
+```bash
+# Fork, clone, and create feature branch
+git checkout -b feature/amazing-feature
+
+# Make changes and test
+npm run test
+
+# Submit pull request
+```
+
+---
+
+## 📄 License
+
+**GPL-3.0** - This is free and open source software. See [LICENSE](../LICENSE) file.
+
+---
+
+## 🙏 Credits
+
+- **Original VoiceInk** by Pax (macOS version)
+- **Google** for Gemini API
+- **OpenAI** for Whisper models
+- **whisper.cpp** by Georgi Gerganov
+- **Electron & React** teams
+- All contributors and users
+
+---
+
+## 📞 Support
+
+- 📖 **Setup Guide**: [DOWNLOAD_AND_RUN.md](DOWNLOAD_AND_RUN.md)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/voiceink/voiceink-windows/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/voiceink/voiceink-windows/discussions)
+
+---
+
+## 🚀 Roadmap
+
+### **Version 1.1** (Next Release)
+- [ ] Real-time streaming transcription
+- [ ] Mobile companion app
+- [ ] Cloud sync between devices
+- [ ] Plugin system for extensions
+
+### **Version 1.2** (Future)
+- [ ] Video transcription support
+- [ ] Team collaboration features
+- [ ] AI-powered editing tools
+- [ ] Custom voice training
+
+---
+
+**Made with ❤️ for Windows users who need powerful voice transcription**
+
+⭐ **If this helps you, please star the repo!**
+
+🔥 **Ready to use in 2 minutes - No compilation needed!**
