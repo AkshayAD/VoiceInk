@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./voiceink.db"
+}
+
+model Transcription {
+  id              String   @id @default(uuid())
+  text            String
+  originalText    String?
+  audioPath       String?
+  duration        Float?
+  model           String
+  language        String   @default("en")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  applicationName String?
+  applicationPath String?
+  url             String?
+  enhanced        Boolean  @default(false)
+  enhancedBy      String?
+  promptUsed      String?
+  wordCount       Int      @default(0)
+  
+  @@index([createdAt])
+  @@index([applicationName])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model PowerModeConfig {
+  id              String   @id @default(uuid())
+  name            String
+  appIdentifier   String?
+  urlPattern      String?
+  model           String?
+  autoEnhance     Boolean  @default(false)
+  enhancePrompt   String?
+  autoPaste       Boolean  @default(true)
+  autoSendEnter   Boolean  @default(false)
+  customWords     String?  // JSON array
+  replacements    String?  // JSON object
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([appIdentifier])
+  @@index([urlPattern])
+}
+
+model CustomWord {
+  id        String   @id @default(uuid())
+  word      String   @unique
+  phonetic  String?
+  context   String?
+  createdAt DateTime @default(now())
+}
+
+model Replacement {
+  id          String   @id @default(uuid())
+  pattern     String   @unique
+  replacement String
+  isRegex     Boolean  @default(false)
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model AIPrompt {
+  id          String   @id @default(uuid())
+  name        String
+  prompt      String
+  category    String
+  isDefault   Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([usageCount])
+}
+
+model UsageMetrics {
+  id                String   @id @default(uuid())
+  date              DateTime @default(now())
+  transcriptionCount Int     @default(0)
+  totalDuration     Float    @default(0)
+  totalWords        Int      @default(0)
+  enhancedCount     Int      @default(0)
+  applicationUsage  String?  // JSON object with app usage stats
+  
+  @@unique([date])
+  @@index([date])
+}

@@ -1,0 +1,97 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+dist-electron/
+build/
+out/
+*.log
+
+# Native module builds
+build/
+Release/
+Debug/
+*.node
+*.obj
+*.pdb
+*.lib
+*.exp
+*.ilk
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Database
+prisma/*.db
+prisma/*.db-journal
+*.sqlite
+*.sqlite3
+
+# Models (large files)
+resources/models/*.bin
+resources/models/*.gguf
+
+# Audio files
+*.wav
+*.mp3
+*.m4a
+*.ogg
+
+# Temporary files
+temp/
+tmp/
+.temp/
+.tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Electron
+electron-builder.yml
+!electron-builder.json
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Debug
+.vscode/launch.json
+.vscode/tasks.json
+
+# Certificates
+*.p12
+*.pfx
+*.key
+*.crt
+*.pem
